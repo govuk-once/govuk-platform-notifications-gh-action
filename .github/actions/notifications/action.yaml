@@ -1,0 +1,79 @@
+name: Send Notification
+description: Send a deployment or release notification to Slack via the govuk-once notifications hub
+
+inputs:
+  message:
+    description: Short title of the notification
+    required: true
+  message_type:
+    description: "Notification type: deployment or release"
+    required: true
+  status:
+    description: "Deployment outcome: Success or Failed"
+    required: false
+    default: ""
+  description:
+    description: Body text — supports markdown, line breaks, bullet lists, and links
+    required: false
+    default: ""
+  slack_channel:
+    description: "Target Slack channel, e.g. #my-channel. Falls back to the hub default"
+    required: false
+    default: ""
+  repository:
+    description: Repository name shown in the notification (release type only)
+    required: false
+    default: ""
+  tag:
+    description: Version tag shown in the notification (release type only)
+    required: false
+    default: ""
+  aws_account_id:
+    description: AWS account ID where the notifications-spoke queue is deployed
+    required: true
+  aws_region:
+    description: AWS region of the spoke SQS queue
+    required: false
+    default: eu-west-2
+
+runs:
+  using: composite
+  steps:
+    - name: Build notification payload
+      shell: bash
+      env:
+        MESSAGE: ${{ inputs.message }}
+        MESSAGE_TYPE: ${{ inputs.message_type }}
+        STATUS: ${{ inputs.status }}
+        DESCRIPTION: ${{ inputs.description }}
+        SLACK_CHANNEL: ${{ inputs.slack_channel }}
+        REPOSITORY: ${{ inputs.repository }}
+        TAG: ${{ inputs.tag }}
+      run: |
+        jq -n \
+          --arg message        "$MESSAGE" \
+          --arg message_type   "$MESSAGE_TYPE" \
+          --arg status         "$STATUS" \
+          --arg description    "$DESCRIPTION" \
+          --arg slack_channel  "$SLACK_CHANNEL" \
+          --arg repository     "$REPOSITORY" \
+          --arg tag            "$TAG" \
+          '{message: $message, message_type: $message_type}
+           + (if $status       != "" then {status: $status}               else {} end)
+           + (if $description  != "" then {description: $description}     else {} end)
+           + (if $slack_channel != "" then {slack_channel: $slack_channel} else {} end)
+           + (if $repository   != "" then {repository: $repository}       else {} end)
+           + (if $tag          != "" then {tag: $tag}                     else {} end)
+           + (if $message_type == "release" then {color: "purple"}        else {} end)' \
+          > "$RUNNER_TEMP/notification.json"
+
+    - name: Send notification
+      shell: bash
+      env:
+        ACCOUNT_ID: ${{ inputs.aws_account_id }}
+        AWS_REGION: ${{ inputs.aws_region }}
+      run: |
+        aws sqs send-message \
+          --queue-url "https://sqs.${AWS_REGION}.amazonaws.com/${ACCOUNT_ID}/notifications-spoke" \
+          --message-body "file://$RUNNER_TEMP/notification.json" \
+          --region "$AWS_REGION"
