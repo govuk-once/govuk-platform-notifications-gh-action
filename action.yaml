@@ -2,7 +2,7 @@ name: Send Notification
 description: Send a deployment or release notification to Slack via the govuk-once notifications hub
 
 inputs:
-  message:
+  title:
     description: Short title of the notification
     required: true
   message_type:
@@ -12,7 +12,7 @@ inputs:
     description: "Deployment outcome: Success or Failed"
     required: false
     default: ""
-  description:
+  message:
     description: Body text — supports markdown, line breaks, bullet lists, and links
     required: false
     default: ""
@@ -45,7 +45,7 @@ runs:
         MESSAGE: ${{ inputs.message }}
         MESSAGE_TYPE: ${{ inputs.message_type }}
         STATUS: ${{ inputs.status }}
-        DESCRIPTION: ${{ inputs.description }}
+        TITLE: ${{ inputs.title }}
         SLACK_CHANNEL: ${{ inputs.slack_channel }}
         REPOSITORY: ${{ inputs.repository }}
         TAG: ${{ inputs.tag }}
@@ -54,13 +54,13 @@ runs:
           --arg message        "$MESSAGE" \
           --arg message_type   "$MESSAGE_TYPE" \
           --arg status         "$STATUS" \
-          --arg description    "$DESCRIPTION" \
+          --arg title    "$TITLE" \
           --arg slack_channel  "$SLACK_CHANNEL" \
           --arg repository     "$REPOSITORY" \
           --arg tag            "$TAG" \
           '{message: $message, message_type: $message_type}
            + (if $status       != "" then {status: $status}               else {} end)
-           + (if $description  != "" then {description: $description}     else {} end)
+           + (if $title  != "" then {title: $title}     else {} end)
            + (if $slack_channel != "" then {slack_channel: $slack_channel} else {} end)
            + (if $repository   != "" then {repository: $repository}       else {} end)
            + (if $tag          != "" then {tag: $tag}                     else {} end)
