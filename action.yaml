@@ -35,6 +35,22 @@ inputs:
     description: AWS region of the spoke SQS queue
     required: false
     default: eu-west-2
+  environment:
+    description: Environment associated with the notification
+    required: false
+    default: ""
+  finding_count:
+    description: Number of security findings
+    required: false
+    default: ""
+  findings:
+    description: Security findings
+    required: false
+    default: ""
+  workflow_url:
+    description: URL of the GitHub Actions workflow run
+    required: false
+    default: ""
 
 runs:
   using: composite
@@ -49,6 +65,10 @@ runs:
         SLACK_CHANNEL: ${{ inputs.slack_channel }}
         REPOSITORY: ${{ inputs.repository }}
         TAG: ${{ inputs.tag }}
+        ENVIRONMENT: ${{ inputs.environment }}
+        FINDING_COUNT: ${{ inputs.finding_count }}
+        FINDINGS: ${{ inputs.findings }}
+        WORKFLOW_URL: ${{ inputs.workflow_url }}
       run: |
         jq -n \
           --arg message        "$MESSAGE" \
@@ -58,12 +78,20 @@ runs:
           --arg slack_channel  "$SLACK_CHANNEL" \
           --arg repository     "$REPOSITORY" \
           --arg tag            "$TAG" \
+          --arg environment    "$ENVIRONMENT" \
+          --arg finding_count  "$FINDING_COUNT" \
+          --arg findings       "$FINDINGS" \
+          --arg workflow_url   "$WORKFLOW_URL" \
           '{message: $message, message_type: $message_type}
            + (if $status       != "" then {status: $status}               else {} end)
            + (if $title  != "" then {title: $title}     else {} end)
            + (if $slack_channel != "" then {slack_channel: $slack_channel} else {} end)
            + (if $repository   != "" then {repository: $repository}       else {} end)
            + (if $tag          != "" then {tag: $tag}                     else {} end)
+           + (if $environment   != "" then {environment: $environment}       else {} end)
+           + (if $finding_count != "" then {finding_count: $finding_count}   else {} end)
+           + (if $findings      != "" then {findings: $findings}             else {} end)
+           + (if $workflow_url  != "" then {workflow_url: $workflow_url}     else {} end)
            + (if $message_type == "release" then {color: "purple"}        else {} end)' \
           > "$RUNNER_TEMP/notification.json"
 
