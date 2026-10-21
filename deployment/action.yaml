@@ -1,0 +1,58 @@
+name: Send Deployment Notification
+description: Send a deployment notification to Slack via the govuk-once notifications hub
+
+inputs:
+  title:
+    description: Short title of the notification (e.g. "my-service v1.5.0")
+    required: true
+  message:
+    description: Body text — supports markdown, line breaks, bullet lists, and links
+    required: true
+  repository:
+    description: Repository name shown in the notification (e.g. "govuk-once/my-service")
+    required: true
+  tag:
+    description: Version tag shown in the notification (e.g. "v1.5.0")
+    required: true
+  slack_channel:
+    description: "Target Slack channel, e.g. #my-channel"
+    required: true
+  aws_account_id:
+    description: AWS account ID where the notifications-spoke queue is deployed
+    required: true
+  aws_region:
+    description: AWS region of the spoke SQS queue
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Build notification payload
+      shell: bash
+      env:
+        MESSAGE: ${{ inputs.message }}
+        TITLE: ${{ inputs.title }}
+        SLACK_CHANNEL: ${{ inputs.slack_channel }}
+        REPOSITORY: ${{ inputs.repository }}
+        TAG: ${{ inputs.tag }}
+      run: |
+        jq -n \
+          --arg title        "$TITLE" \
+          --arg message      "$MESSAGE" \
+          --arg message_type "deployment" \
+          --arg status "$STATUS" \
+          --arg slack_channel "$SLACK_CHANNEL" \
+          '{message: $message, message_type: $message_type, title: $title,
+            slack_channel: $slack_channel, status: $status}' \
+          > "$RUNNER_TEMP/notification.json"
+
+    - name: Send notification
+      shell: bash
+      env:
+        ACCOUNT_ID: ${{ inputs.aws_account_id }}
+        AWS_REGION: ${{ inputs.aws_region }}
+      run: |
+        aws sqs send-message \
+          --queue-url "https://sqs.${AWS_REGION}.amazonaws.com/${ACCOUNT_ID}/notifications-spoke" \
+          --message-body "file://$RUNNER_TEMP/notification.json" \
+          --region "$AWS_REGION"
