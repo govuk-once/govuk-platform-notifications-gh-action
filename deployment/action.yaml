@@ -30,8 +30,7 @@ runs:
         MESSAGE: ${{ inputs.message }}
         TITLE: ${{ inputs.title }}
         SLACK_CHANNEL: ${{ inputs.slack_channel }}
-        REPOSITORY: ${{ inputs.repository }}
-        TAG: ${{ inputs.tag }}
+        STATUS: ${{ inputs.status }}
       run: |
         jq -n \
           --arg title        "$TITLE" \
