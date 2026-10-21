@@ -43,7 +43,7 @@ runs:
           --arg status "$STATUS" \
           --arg slack_channel "$SLACK_CHANNEL" \
           '{message: $message, message_type: $message_type, title: $title,
-            repository: $repository, tag: $tag, slack_channel: $slack_channel}' \
+            slack_channel: $slack_channel, status: $status}' \
           > "$RUNNER_TEMP/notification.json"
 
     - name: Send notification
